@@ -2,7 +2,7 @@ module myapp
 
 go 1.23.0
 
-toolchain go1.24.4
+toolchain go1.23.10
 
 require (
 	github.com/jung-kurt/gofpdf v1.16.2
