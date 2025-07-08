@@ -1,8 +1,0 @@
-{
-    "[go]": {
-        "editor.tabSize": 2, // 公式のサイズは不明。2か4
-        "editor.insertSpaces": false, // Go公式はスペースでなくタブ
-        "editor.formatOnSave": true, // ファイル保存時にフォーマット
-        "editor.defaultFormatter": "golang.go" // 変える
-    },
-}
