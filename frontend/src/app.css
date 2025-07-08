@@ -1,0 +1,128 @@
+#logo {
+    display: block;
+    width: 50%;
+    height: 50%;
+    margin: auto;
+    padding: 10% 0 0;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-origin: content-box;
+}
+
+.result {
+    height: 20px;
+    line-height: 20px;
+    margin: 1.5rem auto;
+}
+
+.input-box .btn {
+    width: 60px;
+    height: 30px;
+    line-height: 30px;
+    border-radius: 3px;
+    border: none;
+    margin: 0 0 0 20px;
+    padding: 0 8px;
+    cursor: pointer;
+}
+
+.input-box .btn:hover {
+    background-image: linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%);
+    color: #333333;
+}
+
+.input-box .input {
+    border: none;
+    border-radius: 3px;
+    outline: none;
+    height: 30px;
+    line-height: 30px;
+    padding: 0 10px;
+    background-color: rgba(240, 240, 240, 1);
+    -webkit-font-smoothing: antialiased;
+}
+
+.input-box .input:hover {
+    border: none;
+    background-color: rgba(255, 255, 255, 1);
+}
+
+.input-box .input:focus {
+    border: none;
+    background-color: rgba(255, 255, 255, 1);
+}
+
+/* 優しい背景色とコンパクトなUIのためのスタイル */
+body, #app {
+  background: #f8f6f2;
+  min-height: 100vh;
+  margin: 0;
+  font-family: 'Nunito', 'Yu Gothic', 'Meiryo', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#app {
+  width: 80vw;
+  min-height: 220px;
+  padding: 32px 18px 24px 18px;
+  background: #f8f6f2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.drop-area {
+  border: 2px dashed #d6cfc2;
+  border-radius: 12px;
+  background: #fcfaf6;
+  padding: 32px 10px 24px 10px;
+  text-align: center;
+  color: #7d7360;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 18px;
+  width: 100%;
+  min-height: 80px;
+}
+.drop-area.highlight {
+  border-color: #b6a98b;
+  background: #f3ede2;
+}
+.btn {
+  margin-top: 10px;
+  background: #f3ede2;
+  color: #7d7360;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 18px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn:disabled {
+  background: #e0d8c9;
+  color: #b0a99a;
+  cursor: not-allowed;
+}
+.btn:disabled:hover {
+  background: #e0d8c9;
+  color: #b0a99a;
+}
+.btn:hover {
+  background: #ede5d2;
+}
+#file-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 0.98em;
+}
+#file-list li {
+  padding: 3px 0 3px 6px;
+  border-bottom: 1px solid #f0ece5;
+  color: #6d6552;
+  word-break: break-all;
+}
