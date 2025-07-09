@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 
 	// "myapp/internal/pdf"
 
@@ -967,13 +968,13 @@ func (a *App) SaveXLSXsToPDFDir(files []FileData) error {
 
 	for _, f := range files {
 
-		fx, name, err := a.loadCSV(f)
+		fx, _, err := a.loadCSV(f)
 		if err != nil {
 			return fmt.Errorf("CSVファイルの読み込みに失敗: %w", err)
 		}
 		defer fx.Close()
 
-		pdfPath := filepath.Join(Dpath, name[:len(name)-len(filepath.Ext(name))]+".pdf")
+		pdfPath := filepath.Join(Dpath, "求人票_"+time.Now().Format("20060102")+".pdf")
 
 		// PDF生成
 		pdf := gofpdf.New("P", "mm", "A4", os.TempDir())
