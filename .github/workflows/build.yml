@@ -6,6 +6,8 @@ on:
     # Match any new tag
       - '*'
 
+permissions:
+  contents: write
 
 jobs:
   build:
