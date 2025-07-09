@@ -20,7 +20,7 @@ func main() {
 	err := wails.Run(&options.App{
 		Title:  "Job Posting PDF Converter",
 		Width:  350,
-		Height: 350,
+		Height: 500,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
