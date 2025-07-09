@@ -44,14 +44,14 @@ func (a *App) loadData(sheet string, fx *excelize.File) ([][]string, error) {
 	// A1:AD48のデータ取得
 	rows, err := fx.Rows(sheet)
 	if err != nil {
-		return nil, fmt.Errorf("%s: 範囲取得失敗: %w", err)
+		return nil, fmt.Errorf("範囲取得失敗: %w", err)
 	}
 	var tableData [][]string
 	rowIdx := 0
 	for rows.Next() {
 		row, err := rows.Columns()
 		if err != nil {
-			return nil, fmt.Errorf("%s: 行取得失敗: %w", err)
+			return nil, fmt.Errorf("行取得失敗: %w", err)
 		}
 		if rowIdx >= 48 {
 			break
