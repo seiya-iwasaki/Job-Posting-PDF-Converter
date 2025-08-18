@@ -108,7 +108,6 @@ type Text struct {
 	pageNum int     // ページ数
 }
 
-// コンストラクタ
 func NewTable(pdf *gofpdf.Fpdf, x_i, y_i, x_f, y_f float64, colNum int, rowNum int, font string, fontSize, default_H float64, border string) *Table {
 	t := &Table{
 		pdf:       pdf,
@@ -161,7 +160,6 @@ func NewTable(pdf *gofpdf.Fpdf, x_i, y_i, x_f, y_f float64, colNum int, rowNum i
 	return t
 }
 
-// コンストラクタ（付録用）
 func NewAppendix(pdf *gofpdf.Fpdf, x_i, x_f, y_i float64, font string, fontSize, default_H float64, border string) *Table {
 	t := &Table{
 		pdf:       pdf,
