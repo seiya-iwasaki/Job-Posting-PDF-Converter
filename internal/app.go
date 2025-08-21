@@ -826,6 +826,8 @@ func (a *App) SaveXLSXsToPDFDir(files []FileData) error {
 			// MARGIN CONFIG
 			marginSide := 30.0
 			marginTop := 13.0
+			d = 0.0
+			nextPageFlag = false
 
 			// TITLE
 			pdf.SetFont("IPA", "", 20)
