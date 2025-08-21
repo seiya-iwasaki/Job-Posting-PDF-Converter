@@ -14,6 +14,9 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 
+var nextPageFlag bool = false
+var d float64 = 0.0
+
 // FileData: フロントエンドから受け取るファイル情報
 // DataはBase64エンコードされたファイル内容
 type FileData struct {
@@ -109,6 +112,7 @@ type Text struct {
 }
 
 func NewTable(pdf *gofpdf.Fpdf, x_i, y_i, x_f, y_f float64, colNum int, rowNum int, font string, fontSize, default_H float64, border string) *Table {
+
 	t := &Table{
 		pdf:       pdf,
 		x_i:       x_i,
@@ -142,12 +146,12 @@ func NewTable(pdf *gofpdf.Fpdf, x_i, y_i, x_f, y_f float64, colNum int, rowNum i
 	// 行のY座標を入れていくところ
 	t.Ys = []float64{}
 
-	_, pageHeight := t.pdf.GetPageSize()
-	if y_i > pageHeight {
-		fmt.Print("[Render] y_i exceeds page height\n")
-		y_i = 20.0
-		pdf.AddPage() // 新しいページを作成
-	}
+	// _, pageHeight := t.pdf.GetPageSize()
+	// if y_i > pageHeight {
+	// 	fmt.Print("[Render] y_i exceeds page height\n")
+	// 	y_i = 20.0
+	// 	pdf.AddPage() // 新しいページを作成
+	// }
 	t.pageNum = pdf.PageNo()
 	// 行のY座標を計算
 	t.Ys = append(t.Ys, y_i)
@@ -161,6 +165,7 @@ func NewTable(pdf *gofpdf.Fpdf, x_i, y_i, x_f, y_f float64, colNum int, rowNum i
 }
 
 func NewAppendix(pdf *gofpdf.Fpdf, x_i, x_f, y_i float64, font string, fontSize, default_H float64, border string) *Table {
+
 	t := &Table{
 		pdf:       pdf,
 		x_i:       x_i,
@@ -196,19 +201,15 @@ func (t *Table) GetBottomLine(pageNum int) float64 {
 
 	// Cells から最大 y+h を探す
 	for _, cell := range t.Cells {
-		if cell.pageNum == pageNum {
-			if yBottom := cell.y + cell.h; yBottom > maxY {
-				maxY = yBottom
-			}
+		if yBottom := cell.y + cell.h; yBottom > maxY {
+			maxY = yBottom
 		}
 	}
 
 	// Rects から最大 y+h を探す
 	for _, rect := range t.Rects {
-		if rect.pageNum == pageNum {
-			if yBottom := rect.y + rect.h; yBottom > maxY {
-				maxY = yBottom
-			}
+		if yBottom := rect.y + rect.h; yBottom > maxY {
+			maxY = yBottom
 		}
 	}
 
@@ -218,23 +219,19 @@ func (t *Table) GetBottomLine(pageNum int) float64 {
 }
 
 func (t *Table) GetTopLine(pageNum int) float64 {
-	minY := 1000.0 // 初期値は大きな値に設定
+	minY := 1000000.0 // 初期値は大きな値に設定
 
 	// Cells から最小 y を探す
 	for _, cell := range t.Cells {
-		if cell.pageNum == pageNum {
-			if yBottom := cell.y; yBottom < minY {
-				minY = yBottom
-			}
+		if yBottom := cell.y; yBottom < minY {
+			minY = yBottom
 		}
 	}
 
 	// Rects から最小 y を探す
 	for _, rect := range t.Rects {
-		if rect.pageNum == pageNum {
-			if yBottom := rect.y; yBottom < minY {
-				minY = yBottom
-			}
+		if yBottom := rect.y; yBottom < minY {
+			minY = yBottom
 		}
 	}
 
@@ -260,56 +257,51 @@ func (t *Table) SetCell(col_i, row_i, col_f, row_f int, text string, align strin
 		fontSize = t.fontSize
 	}
 
-	_, pageHeight := t.pdf.GetPageSize()
-	if t.Ys[row_i]+unitSize <= pageHeight-t.margin { // 現在のページに収まる場合
+	for i := len(t.Ys); i < row_f; i++ { // 未生成の間の行を高さ0で仮設定する
+		t.Ys = append(t.Ys, t.Ys[len(t.Ys)-1])
+		t.Rows = append(t.Rows, Row{
+			y:       t.Ys[len(t.Ys)-1],
+			pageNum: t.pageNum,
+		})
+	}
 
-		for i := len(t.Ys); i < row_f; i++ { // 未生成の間の行を高さ0で仮設定する
-			t.Ys = append(t.Ys, t.Ys[len(t.Ys)-1])
-			t.Rows = append(t.Rows, Row{
-				y:       t.Ys[len(t.Ys)-1],
-				pageNum: t.pageNum,
-			})
-		}
-
-		if row_f < len(t.Ys) { // Ys[row_f]が存在する = すでに決められた下端行がある
-			if unitSize < t.Ys[row_f]-t.Ys[row_i] { // 現状の下端行のY座標が小さい場合
-				unitSize = t.Ys[row_f] - t.Ys[row_i] // セル高さ継承
-			} else {
-				t.Ys[row_f] = t.Ys[row_i] + unitSize // 下端行のY座標を更新
-				t.Rows[row_f] = Row{
-					y:       t.Ys[row_i] + unitSize,
-					pageNum: t.pageNum,
-				}
-			}
-		} else { // Ys[row_f]が存在しない = 新しい下端行を追加
-			t.Ys = append(t.Ys, t.Ys[row_i]+unitSize) // 行のY座標を設定
-			t.Rows = append(t.Rows, Row{
+	if row_f < len(t.Ys) { // Ys[row_f]が存在する = すでに決められた下端行がある
+		if unitSize < t.Ys[row_f]-t.Ys[row_i] { // 現状の下端行のY座標が小さい場合
+			unitSize = t.Ys[row_f] - t.Ys[row_i] // セル高さ継承
+		} else {
+			t.Ys[row_f] = t.Ys[row_i] + unitSize // 下端行のY座標を更新
+			t.Rows[row_f] = Row{
 				y:       t.Ys[row_i] + unitSize,
 				pageNum: t.pageNum,
-			})
+			}
 		}
-
-		t.Cells = append(t.Cells, CellInfo{
-			x:         t.Xs[col_i],
-			y:         t.Ys[row_i],
-			w:         w,
-			h:         unitSize,
-			pageNum:   t.pageNum,
-			col_i:     col_i,
-			row_i:     row_i,
-			col_f:     col_f,
-			row_f:     row_f,
-			text:      text,
-			align:     align,
-			fill:      fill,
-			fontSize:  fontSize,
-			link:      link,
-			LineWidth: lineWidth, // デフォルトの線の太さ
-			border:    "1",       // セルの枠線スタイル
+	} else { // Ys[row_f]が存在しない = 新しい下端行を追加
+		t.Ys = append(t.Ys, t.Ys[row_i]+unitSize) // 行のY座標を設定
+		t.Rows = append(t.Rows, Row{
+			y:       t.Ys[row_i] + unitSize,
+			pageNum: t.pageNum,
 		})
-	} else { // 現在のページに収まらない場合
-		fmt.Print("[Render] Current page exceeds page height\n")
 	}
+
+	t.Cells = append(t.Cells, CellInfo{
+		x:         t.Xs[col_i],
+		y:         t.Ys[row_i],
+		w:         w,
+		h:         unitSize,
+		pageNum:   t.pageNum,
+		col_i:     col_i,
+		row_i:     row_i,
+		col_f:     col_f,
+		row_f:     row_f,
+		text:      text,
+		align:     align,
+		fill:      fill,
+		fontSize:  fontSize,
+		link:      link,
+		LineWidth: lineWidth, // デフォルトの線の太さ
+		border:    "1",       // セルの枠線スタイル
+	})
+
 	fmt.Print("[Render] SetCell completed: ", text, " at (", col_i, ",", row_i, ") to (", col_f, ",", row_f, ")\n")
 }
 
@@ -353,17 +345,7 @@ func (t *Table) SetMultiRowCell(col_i, row_i, col_f, row_f int, text string, ali
 	// 下端の保存
 	bottomY := 0.0
 
-	// 何行目までページに収まるかを計算
-	residue := pageHeight - 20 - t.Ys[row_i] - default_Margin
-	contanableLines := int(residue / unitSize)
-	if !breakLines && contanableLines < len(lines) { // breakLinesがfalseで収まらない場合はcontanableLines = 0で強制改行
-		contanableLines = 0
-	}
-	if contanableLines > len(lines) { // ページに収まる行数がテキストの行数を超える場合
-		contanableLines = len(lines)
-	}
-	fmt.Printf("[Render] Contanable lines: %d, Total lines: %d, Unit size: %.2f, Residue: %.2f\n", contanableLines, len(lines), unitSize, residue)
-	for i := 0; i < contanableLines; i++ {
+	for i := 0; i < len(lines); i++ {
 		lineY := t.Ys[row_i] + float64(i)*unitSize + default_Margin/2
 		t.Cells = append(t.Cells, CellInfo{
 			x:         t.Xs[col_i],
@@ -384,28 +366,28 @@ func (t *Table) SetMultiRowCell(col_i, row_i, col_f, row_f int, text string, ali
 			border:    "0", // セルの枠線スタイル
 		})
 	}
-	if contanableLines > 0 { // ページに収まる行がある場合
-		if fill {
-			t.Rects = append(t.Rects, RectInfo{
-				x:         t.Xs[col_i],
-				y:         t.Ys[row_i],
-				w:         w,
-				h:         float64(contanableLines)*unitSize + default_Margin,
-				pageNum:   t.pageNum,
-				style:     "F", // 塗りつぶし
-				LineWidth: 0.0, // デフォルトの線の太さ
-			})
-		}
+
+	if fill {
 		t.Rects = append(t.Rects, RectInfo{
 			x:         t.Xs[col_i],
 			y:         t.Ys[row_i],
 			w:         w,
-			h:         float64(contanableLines)*unitSize + default_Margin,
+			h:         float64(len(lines))*unitSize + default_Margin,
 			pageNum:   t.pageNum,
-			style:     "D", // 枠線
-			LineWidth: 0.1, // デフォルトの線の太さ
+			style:     "F", // 塗りつぶし
+			LineWidth: 0.0, // デフォルトの線の太さ
 		})
 	}
+
+	t.Rects = append(t.Rects, RectInfo{
+		x:         t.Xs[col_i],
+		y:         t.Ys[row_i],
+		w:         w,
+		h:         float64(len(lines))*unitSize + default_Margin,
+		pageNum:   t.pageNum,
+		style:     "D", // 枠線
+		LineWidth: 0.1, // デフォルトの線の太さ
+	})
 
 	for i := len(t.Ys) - 1; i < row_f-1; i++ { // 未生成の間の行を高さ0で仮設定する
 		t.Ys = append(t.Ys, t.Ys[len(t.Ys)-1])
@@ -415,56 +397,7 @@ func (t *Table) SetMultiRowCell(col_i, row_i, col_f, row_f int, text string, ali
 		})
 	}
 
-	if len(lines) > contanableLines { // ページに収まらない場合
-		t.Ys[row_i] = t.margin
-		t.pageNum++ // ページを追加
-		for i := contanableLines; i < len(lines); i++ {
-			lineY := t.margin + float64(i-contanableLines)*unitSize + default_Margin/2
-			t.Cells = append(t.Cells, CellInfo{
-				x:         t.Xs[col_i],
-				y:         lineY,
-				w:         w,
-				h:         unitSize,
-				pageNum:   t.pageNum,
-				col_i:     col_i,
-				row_i:     row_i,
-				col_f:     col_f,
-				row_f:     row_f,
-				text:      lines[i],
-				align:     align,
-				fill:      fill,
-				fontSize:  fontSize,
-				link:      "",
-				LineWidth: 0.1, // デフォルトの線の太さ
-				border:    "0", // セルの枠線スタイル
-			})
-		}
-		// セルの矩形情報を追加
-		if fill {
-			t.Rects = append(t.Rects, RectInfo{
-				x:         t.Xs[col_i],
-				y:         t.margin,
-				w:         w,
-				h:         float64(len(lines)-contanableLines)*unitSize + default_Margin,
-				pageNum:   t.pageNum,
-				style:     "F", // 塗りつぶし
-				LineWidth: 0.0, // デフォルトの線の太さ
-			})
-		}
-		t.Rects = append(t.Rects, RectInfo{
-			x:         t.Xs[col_i],
-			y:         t.margin,
-			w:         w,
-			h:         float64(len(lines)-contanableLines)*unitSize + default_Margin,
-			pageNum:   t.pageNum,
-			style:     "D", // 枠線
-			LineWidth: 0.1, // デフォルトの線の太さ
-		})
-
-		bottomY = t.margin + float64(len(lines)-contanableLines)*unitSize + default_Margin
-	} else {
-		bottomY = t.Ys[row_i] + float64(contanableLines)*unitSize + default_Margin
-	}
+	bottomY = t.Ys[row_i] + float64(len(lines))*unitSize + default_Margin
 
 	if row_f < len(t.Ys) { // t.Ys[row_f]が存在する場合
 		if t.Ys[row_f] < t.Ys[row_i]+unitSize { // 現状の下端行のY座標が小さい場合
@@ -514,12 +447,7 @@ func (t *Table) SetAppendix(text string, align string, fill bool, fontSize float
 		return
 	}
 
-	// 何行目までページに収まるかを計算
-	residue := pageHeight - default_Margin - t.y_i
-	contanableLines := int(residue / unitSize)
-	if contanableLines < len(lines) { // breakLinesがfalseで収まらない場合はcontanableLines = 0で強制改行
-		fmt.Print("[Render] Contanable lines is less than total lines at appendix\n")
-	}
+	// Cellを設定
 	for i := 0; i < len(lines); i++ {
 		lineY := t.y_i + float64(i)*unitSize + default_Margin/2
 		t.Cells = append(t.Cells, CellInfo{
@@ -630,189 +558,44 @@ func (t *Table) SetTitle(text string) {
 	t.pdf.SetFontSize(t.fontSize)
 	_, unitSize := t.pdf.GetFontSize()
 
-	if t.Rows[0].pageNum == t.Rows[len(t.Rows)-1].pageNum { // 表全体がページに収まっている場合
-		page := t.Rows[0].pageNum
-		// 総高さ = 行数 × 行の高さ
-		textH := float64(len(runes)) * unitSize
-		startY := t.y_i + (t.Ys[len(t.Ys)-1]-t.y_i-textH)/2
+	page := t.Rows[0].pageNum
+	// 総高さ = 行数 × 行の高さ
+	textH := float64(len(runes)) * unitSize
+	startY := t.y_i + (t.Ys[len(t.Ys)-1]-t.y_i-textH)/2
 
-		// 塗りつぶし背景
-		t.Rects = append(t.Rects, RectInfo{
-			x:         t.x_i - t.titleW,
-			y:         t.y_i,
-			w:         t.titleW,
-			h:         t.Ys[len(t.Ys)-1] - t.y_i,
-			pageNum:   page,
-			style:     "F", // 塗りつぶし
-			LineWidth: 0.0,
+	// 塗りつぶし背景
+	t.Rects = append(t.Rects, RectInfo{
+		x:         t.x_i - t.titleW,
+		y:         t.y_i,
+		w:         t.titleW,
+		h:         t.Ys[len(t.Ys)-1] - t.y_i,
+		pageNum:   page,
+		style:     "F", // 塗りつぶし
+		LineWidth: 0.0,
+	})
+
+	// 枠線
+	t.Rects = append(t.Rects, RectInfo{
+		x:         t.x_i - t.titleW,
+		y:         t.y_i,
+		w:         t.titleW,
+		h:         t.Ys[len(t.Ys)-1] - t.y_i,
+		pageNum:   page,
+		style:     "D", // 枠線
+		LineWidth: 0.3,
+	})
+
+	// 一文字ずつ中央揃えで描画
+	x := t.x_i - t.titleW + t.titleW/2 // 横は中央固定
+	for i, r := range runes {
+		y := startY + float64(i)*unitSize
+		t.Texts = append(t.Texts, Text{
+			x:       x - t.pdf.GetStringWidth(string(r))/2,
+			y:       y + unitSize*0.9,
+			text:    string(r),
+			size:    t.fontSize,
+			pageNum: t.pageNum,
 		})
-
-		// 枠線
-		t.Rects = append(t.Rects, RectInfo{
-			x:         t.x_i - t.titleW,
-			y:         t.y_i,
-			w:         t.titleW,
-			h:         t.Ys[len(t.Ys)-1] - t.y_i,
-			pageNum:   page,
-			style:     "D", // 枠線
-			LineWidth: 0.3,
-		})
-
-		// 一文字ずつ中央揃えで描画
-		x := t.x_i - t.titleW + t.titleW/2 // 横は中央固定
-		for i, r := range runes {
-			y := startY + float64(i)*unitSize
-			t.Texts = append(t.Texts, Text{
-				x:       x - t.pdf.GetStringWidth(string(r))/2,
-				y:       y + unitSize*0.9,
-				text:    string(r),
-				size:    t.fontSize,
-				pageNum: t.pageNum,
-			})
-		}
-	} else { // ページに収まっていない場合
-		textH := float64(len(runes)) * unitSize
-		bottom := t.GetBottomLine(t.Rows[0].pageNum)
-		if bottom-t.y_i >= textH { // タイトルがページの下端より上に入る場合
-			startY := t.y_i + (bottom-t.y_i-textH)/2
-			page := t.Rows[0].pageNum
-			// 塗りつぶし背景
-			t.Rects = append(t.Rects, RectInfo{
-				x:         t.x_i - t.titleW,
-				y:         t.y_i,
-				w:         t.titleW,
-				h:         bottom - t.y_i,
-				pageNum:   page,
-				style:     "F", // 塗りつぶし
-				LineWidth: 0.0,
-			})
-			// 枠線
-			t.Rects = append(t.Rects, RectInfo{
-				x:         t.x_i - t.titleW,
-				y:         t.y_i,
-				w:         t.titleW,
-				h:         bottom - t.y_i,
-				pageNum:   page,
-				style:     "D", // 枠線
-				LineWidth: 0.3,
-			})
-			// 一文字ずつ中央揃えで描画
-			x := t.x_i - t.titleW + t.titleW/2 // 横は中央固定
-			for i, r := range runes {
-				y := startY + float64(i)*unitSize
-				t.Texts = append(t.Texts, Text{
-					x:       x - t.pdf.GetStringWidth(string(r))/2,
-					y:       y + unitSize*0.9,
-					text:    string(r),
-					size:    t.fontSize,
-					pageNum: page,
-				})
-			}
-		} else if t.Ys[len(t.Ys)-1]-t.margin >= textH { // タイトルが次のページに入る場合
-			startY := t.margin + (t.Ys[len(t.Ys)-1]-t.margin-textH)/2
-			page := t.Rows[len(t.Rows)-1].pageNum // 次のページに移動
-			// 塗りつぶし背景
-			t.Rects = append(t.Rects, RectInfo{
-				x:         t.x_i - t.titleW,
-				y:         t.margin,
-				w:         t.titleW,
-				h:         t.Ys[len(t.Ys)-1] - t.margin,
-				pageNum:   page,
-				style:     "F", // 塗りつぶし
-				LineWidth: 0.0,
-			})
-			// 枠線
-			t.Rects = append(t.Rects, RectInfo{
-				x:         t.x_i - t.titleW,
-				y:         t.margin,
-				w:         t.titleW,
-				h:         t.Ys[len(t.Ys)-1] - t.margin,
-				pageNum:   page,
-				style:     "D", // 枠線
-				LineWidth: 0.3,
-			})
-			// 一文字ずつ中央揃えで描画
-			x := t.x_i - t.titleW + t.titleW/2 // 横は中央固定
-			for i, r := range runes {
-				y := startY + float64(i)*unitSize
-				t.Texts = append(t.Texts, Text{
-					x:       x - t.pdf.GetStringWidth(string(r))/2,
-					y:       y + unitSize*0.9,
-					text:    string(r),
-					size:    t.fontSize,
-					pageNum: page,
-				})
-			}
-		} else { // タイトルがページに収まらない場合
-			contanableLines := int((bottom - t.y_i) / unitSize)
-			page1 := t.Rows[0].pageNum
-			page2 := t.Rows[len(t.Rows)-1].pageNum
-			for i := 0; i < contanableLines; i++ {
-				r := runes[i]
-				y := t.y_i + float64(i)*unitSize + unitSize*0.9
-				x := t.x_i - t.titleW + t.titleW/2 // 横は中央固定
-				t.Texts = append(t.Texts, Text{
-					x:       x - t.pdf.GetStringWidth(string(r))/2,
-					y:       y,
-					text:    string(r),
-					size:    t.fontSize,
-					pageNum: page1,
-				})
-				// 塗りつぶし背景
-				t.Rects = append(t.Rects, RectInfo{
-					x:         t.x_i - t.titleW,
-					y:         t.y_i,
-					w:         t.titleW,
-					h:         bottom - t.y_i,
-					pageNum:   page1,
-					style:     "F", // 塗りつぶし
-					LineWidth: 0.0,
-				})
-				// 枠線
-				t.Rects = append(t.Rects, RectInfo{
-					x:         t.x_i - t.titleW,
-					y:         t.y_i,
-					w:         t.titleW,
-					h:         bottom - t.y_i,
-					pageNum:   page1,
-					style:     "D", // 枠線
-					LineWidth: 0.3,
-				})
-			}
-			// 次のページに移動
-			for i := contanableLines; i < len(runes); i++ {
-				r := runes[i]
-				y := t.margin + float64(i-contanableLines)*unitSize + unitSize*0.9
-				x := t.x_i - t.titleW + t.titleW/2 // 横は中央固定
-				t.Texts = append(t.Texts, Text{
-					x:       x - t.pdf.GetStringWidth(string(r))/2,
-					y:       y,
-					text:    string(r),
-					size:    t.fontSize,
-					pageNum: page2,
-				})
-				// 塗りつぶし背景
-				t.Rects = append(t.Rects, RectInfo{
-					x:         t.x_i - t.titleW,
-					y:         t.margin,
-					w:         t.titleW,
-					h:         t.y_f - t.margin,
-					pageNum:   page2,
-					style:     "F", // 塗りつぶし
-					LineWidth: 0.0,
-				})
-				// 枠線
-				t.Rects = append(t.Rects, RectInfo{
-					x:         t.x_i - t.titleW,
-					y:         t.margin,
-					w:         t.titleW,
-					h:         t.y_f - t.margin,
-					pageNum:   page2,
-					style:     "D", // 枠線
-					LineWidth: 0.3,
-				})
-			}
-		}
 	}
 }
 
@@ -824,57 +607,101 @@ func (t *Table) Render(outLine bool) {
 		}
 	}()
 	fmt.Printf("[Render] initialpageNum=%d, pageNum=%d\n", t.initialpageNum, t.pageNum)
-	for i := t.initialpageNum; i <= t.pageNum; i++ {
-		if i > t.pdf.PageNo() {
-			fmt.Printf("[Render] AddPage: i=%d, current PageNo=%d\n", i, t.pdf.PageNo())
+	maxY := t.GetBottomLine(1)
+	minY := t.GetTopLine(1)
+	modifiedY := 0.0
+	_, pageHeight := t.pdf.GetPageSize()
+	fmt.Printf("[minY] %.2f, [pageHeight] %.2f, [maxY] %.2f [d]: %.2f\n", minY, pageHeight, maxY, d)
+
+	if maxY > pageHeight-t.margin {
+		if !nextPageFlag {
+			nextPageFlag = true
+			d = minY - t.margin
+			// 「次のページへ続く」を書く
+			// フォント設定
+			t.pdf.SetFont(t.font, "", 7)
+
+			// ページ幅を取得
+			pageWidth, pageHeight := t.pdf.GetPageSize()
+			margin := t.margin
+
+			// 真ん中寄せでフッターに表示
+			t.pdf.SetY(pageHeight - margin/2) // Y位置をフッター付近に
+			t.pdf.SetX(0)                     // Xは左端
+			t.pdf.CellFormat(
+				pageWidth, // 幅はページ全体
+				10,        // 高さ
+				"次のページへ",  // テキスト
+				"",        // 枠なし
+				0,         // 改行なし
+				"C",       // 中央揃え
+				false,     // 塗りつぶしなし
+				0,
+				"", // リンクなし
+			)
+
 			t.pdf.AddPage()
 		}
-		fmt.Printf("[Render] Render Rects: %d, Cells: %d, Texts: %d on page: %d\n", len(t.Rects), len(t.Cells), len(t.Texts), i)
-		for _, rect := range t.Rects {
-			if rect.pageNum == i && rect.style == "F" {
-				fmt.Printf("[Render] Rect(F): page=%d x=%.2f y=%.2f w=%.2f h=%.2f LineWidth=%.2f\n", rect.pageNum, rect.x, rect.y, rect.w, rect.h, rect.LineWidth)
-				t.pdf.SetXY(rect.x, rect.y)
-				t.pdf.SetLineWidth(rect.LineWidth)
-				t.pdf.Rect(rect.x, rect.y, rect.w, rect.h, rect.style)
-			}
-		}
-		for _, cell := range t.Cells {
-			if cell.pageNum == i {
-				fmt.Printf("[Render] Cell: page=%d x=%.2f y=%.2f w=%.2f h=%.2f text=%s fontSize=%.2f align=%s fill=%v\n", cell.pageNum, cell.x, cell.y, cell.w, cell.h, cell.text, cell.fontSize, cell.align, cell.fill)
-				t.pdf.SetXY(cell.x, cell.y)
-				t.pdf.SetFont(t.font, "", cell.fontSize)
-				t.pdf.SetLineWidth(cell.LineWidth)
-				t.pdf.CellFormat(cell.w, cell.h, cell.text, cell.border, 0, cell.align, cell.fill, 0, cell.link)
-			}
-		}
-		for _, text := range t.Texts {
-			if text.pageNum == i {
-				fmt.Printf("[Render] Text: page=%d x=%.2f y=%.2f text=%s size=%.2f\n", text.pageNum, text.x, text.y, text.text, text.size)
-				t.pdf.SetFont(t.font, "", text.size)
-				t.pdf.Text(text.x, text.y, text.text)
-			}
-		}
-		for _, rect := range t.Rects {
-			if rect.pageNum == i && rect.style == "D" {
-				fmt.Printf("[Render] Rect(D): page=%d x=%.2f y=%.2f w=%.2f h=%.2f LineWidth=%.2f\n", rect.pageNum, rect.x, rect.y, rect.w, rect.h, rect.LineWidth)
-				t.pdf.SetLineWidth(rect.LineWidth)
-				t.pdf.Rect(rect.x, rect.y, rect.w, rect.h, rect.style)
-			}
-		}
-		if outLine {
-			bottom := t.GetBottomLine(i)
-			top := t.GetTopLine(i)
-			fmt.Printf("[Render] Outer Rect: page=%d x=%.2f y=%.2f w=%.2f h=%.2f\n", i, t.x_i-t.titleW, top, t.x_f-t.x_i+t.titleW, bottom-top)
-			t.pdf.SetLineWidth(0.3)
-			if i == t.initialpageNum && bottom > 0.0 { // 初期ページで、全体が1ページに収まっている場合
-				if bottom-top > 0.0 {
-					t.pdf.Rect(t.x_i-t.titleW, top, t.x_f-t.x_i+t.titleW, bottom-top, "D")
-				}
+	}
+	fmt.Printf("[Render] Render Rects: %d, Cells: %d, Texts: %d\n", len(t.Rects), len(t.Cells), len(t.Texts))
+	for _, rect := range t.Rects {
+		if rect.style == "F" {
+			if nextPageFlag {
+				modifiedY = rect.y - d
 			} else {
-				if bottom-t.margin > 0.0 {
-					t.pdf.Rect(t.x_i-t.titleW, t.margin, t.x_f-t.x_i+t.titleW, bottom-t.margin, "D")
-				}
+				modifiedY = rect.y
 			}
+			fmt.Printf("[Render] Rect(F): page=%d x=%.2f y=%.2f w=%.2f h=%.2f LineWidth=%.2f\n", rect.pageNum, rect.x, rect.y, rect.w, rect.h, rect.LineWidth)
+			t.pdf.SetXY(rect.x, modifiedY)
+			t.pdf.SetLineWidth(rect.LineWidth)
+			t.pdf.Rect(rect.x, modifiedY, rect.w, rect.h, rect.style)
+		}
+	}
+	for _, cell := range t.Cells {
+		fmt.Printf("[Render] Cell: page=%d x=%.2f y=%.2f w=%.2f h=%.2f text=%s fontSize=%.2f align=%s fill=%v\n", cell.pageNum, cell.x, cell.y, cell.w, cell.h, cell.text, cell.fontSize, cell.align, cell.fill)
+		if nextPageFlag {
+			modifiedY = cell.y - d
+		} else {
+			modifiedY = cell.y
+		}
+		t.pdf.SetXY(cell.x, modifiedY)
+		t.pdf.SetFont(t.font, "", cell.fontSize)
+		t.pdf.SetLineWidth(cell.LineWidth)
+		t.pdf.CellFormat(cell.w, cell.h, cell.text, cell.border, 0, cell.align, cell.fill, 0, cell.link)
+
+	}
+	for _, text := range t.Texts {
+		if nextPageFlag {
+			modifiedY = text.y - d
+		} else {
+			modifiedY = text.y
+		}
+		fmt.Printf("[Render] Text: page=%d x=%.2f y=%.2f text=%s size=%.2f\n", text.pageNum, text.x, text.y, text.text, text.size)
+		t.pdf.SetFont(t.font, "", text.size)
+		t.pdf.Text(text.x, modifiedY, text.text)
+	}
+	for _, rect := range t.Rects {
+		if rect.style == "D" {
+			if nextPageFlag {
+				modifiedY = rect.y - d
+			} else {
+				modifiedY = rect.y
+			}
+			fmt.Printf("[Render] Rect(D): page=%d x=%.2f y=%.2f w=%.2f h=%.2f LineWidth=%.2f\n", rect.pageNum, rect.x, rect.y, rect.w, rect.h, rect.LineWidth)
+			t.pdf.SetLineWidth(rect.LineWidth)
+			t.pdf.Rect(rect.x, modifiedY, rect.w, rect.h, rect.style)
+		}
+	}
+	if outLine {
+		bottom := t.GetBottomLine(1)
+		top := t.GetTopLine(1)
+		if nextPageFlag {
+			bottom = bottom - d
+			top = top - d
+		}
+		t.pdf.SetLineWidth(0.3)
+		if bottom-top > 0.0 {
+			t.pdf.Rect(t.x_i-t.titleW, top, t.x_f-t.x_i+t.titleW, bottom-top, "D")
 		}
 	}
 }
